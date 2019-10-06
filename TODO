@@ -1,0 +1,20 @@
+I. Data prep
+    A. Parsing files:
+        1. Iterate through all messages from oldest message to newest
+        2. compile other persons messages as message
+            2a. reverse message for better performance on seq2seq
+            2b. Add <SOM>, <EOM> tokens?
+        3. Compile my messages as response
+            3a. Add <SOM>, <EOM> tokens?
+        4. Add message => response pair to dictionary
+            4a. write to tab-separated file
+
+    B. Vectorizing words
+        1. ???
+
+II. 
+
+
+
+PLAN:
+Build Seq2Seq LSTM model to take in messages as input and output 
