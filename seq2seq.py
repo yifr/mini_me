@@ -17,6 +17,8 @@ import torch.nn.functional as F
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+MAX_LENGTH = 50
+
 class Lang:
     def __init__(self, name):
         self.name = name
@@ -38,24 +40,24 @@ class Lang:
         else:
             self.word2count[word] += 1
 
-class EncoderRNN():
+class EncoderRNN(nn.Module):
     def __init__(self, input_size, hidden_size):
         super(EncoderRNN, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.embedding = nn.Embedding(input_size, hidden_size)
-        self.LSTM = nn.LSTM(hidden_size, hidden_size)
+        self.GRU = nn.GRU(hidden_size, hidden_size)
 
     def forward(self, input, hidden):
         embedded = self.embedding(input).view(1, 1, -1)
         output = embedded
-        output, hidden = self.LSTM(output, hidden)
+        output, hidden = self.GRU(output, hidden)
         return output, hidden
 
     def initHidden(self):
         return torch.zeros(1, 1, self.hidden_size, device=device)
 
-class AttnDecoderRNN():
+class AttnDecoderRNN(nn.Module):
     def __init__(self, hidden_size, output_size, dropout_p=0.1, max_length=MAX_LENGTH):
         super(AttnDecoderRNN, self).__init__()
         self.hidden_size = hidden_size
@@ -65,12 +67,12 @@ class AttnDecoderRNN():
 
         self.embedding = nn.Embedding(self.output_size, self.hidden_size)
         self.attn = nn.Linear(self.hidden_size * 2, self.max_length)
-        self.attn_combine = nn.Linear(self.hidden_size, self.hidden_size)
+        self.attn_combine = nn.Linear(self.hidden_size * 2, self.hidden_size)
         self.dropout = nn.Dropout(self.dropout_p)
-        self.LSTN = nn.LSTM(self.hidden_size, self.hidden_size)
+        self.GRU = nn.GRU(self.hidden_size, self.hidden_size)
         self.out = nn.Linear(self.hidden_size, self.output_size)
 
-    def forward(self, input, hidden_size, encoder_outputs):
+    def forward(self, input, hidden, encoder_outputs):
         embedded = self.embedding(input).view(1, 1, -1)
         embedded = self.dropout(embedded)
 
@@ -83,7 +85,7 @@ class AttnDecoderRNN():
         output = self.attn_combine(output).unsqueeze(0)
 
         output = F.relu(output)
-        output, hidden = self.LSTM(output, hidden)
+        output, hidden = self.GRU(output, hidden)
 
         output = F.log_softmax(self.out(output[0]), dim=1)
         return output, hidden, attn_weights
@@ -91,19 +93,4 @@ class AttnDecoderRNN():
     def initHidden(self):
         return torch.zeros(1, 1, self.hidden_size, device=device)
 
-def main():
-    messages = Lang('messages')
-    responses = Lang('responses')
-    data = process_data.get_fb_data()
 
-    print('Building vocabulary...')
-    for msg, resp in data.items():
-        messages.add_sentence(msg)
-        responses.add_sentence(resp)
-
-    print('Unique words counted: ')
-    print('{}: {}'.format(messages.name, messages.n_words))
-    print('{}: {}'.format(responses.name, responses.n_words))
-
-if __name__=='__main__':
-    main()

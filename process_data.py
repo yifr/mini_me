@@ -18,17 +18,22 @@ import torch.nn.functional as F
 
 SOS_token = 0
 EOS_token = 1
+MAX_LENGTH = 50
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 '''
 Initial data processing:
 '''
-def get_fb_data(data_dir='./inbox', target='Yoni Friedman', write_data=False):
+def get_fb_data(data_dir='./inbox', target='Yoni Friedman'):
     '''
     Reads through all messages in facebook data,
     returns dictionary with message response pairs,
     (message = sent by someone else, response = sent by you)
     and writes message, response pairs to output txt file
     '''
+    save_data = input('Save data to .txt file? (y) or (n): ')
+    write_data = True if save_data == 'y' else False
+
     # Grab all file paths of message conversations
     msg_files = []
     for root, dirs, files in os.walk(data_dir):
@@ -41,7 +46,7 @@ def get_fb_data(data_dir='./inbox', target='Yoni Friedman', write_data=False):
     # Parse json information
     if write_data:
         dataset = open('dataset.txt', 'a+', encoding='utf-8')
-    data_dict = dict()
+    pairs = []      # Save pairs of message / responses
 
     print('Parsing message data...')
     for msg_file in msg_files:
@@ -73,9 +78,10 @@ def get_fb_data(data_dir='./inbox', target='Yoni Friedman', write_data=False):
 
             # Write message response pair when I've completed response (next message being sent)
             if curr_sender != target and prev_sender == target and message and response:
-                data_dict[message] = response
+                pairs.append([message, response])
                 if write_data:
-                    dataset.write(message + '\t' + response)
+                    dataset.write('MESSAGE: ' + message + '\nRESPONSE: ' + response + \
+                            '\n=======================================================================================\n')
 
                 message = ''
                 response = ''
@@ -85,12 +91,21 @@ def get_fb_data(data_dir='./inbox', target='Yoni Friedman', write_data=False):
     print('Parsed {} message threads...'.format(len(msg_files)))
     if write_data:
         dataset.close()
-    return data_dict
+    return pairs
 
 
 '''
 Preparing training data:
 '''
+
+def filter_pair(p):
+    return len(p[0].split(' ')) < MAX_LENGTH and \
+            len(p[1].split(' ')) < MAX_LENGTH
+
+
+def filter_pairs(pairs):
+    return [pair for pair in pairs if filter_pair(pair)]
+
 def indexes_from_sentence(lang, sentence):
     return [lang.word2index[word] for word in sentence.split(' ')]
 
@@ -99,8 +114,8 @@ def tensor_from_sentence(lang, sentence):
     indexes.append(EOS_token)
     return torch.tensor(indexes, dtype=torch.long, device=device).view(-1, 1)
 
-def tensors_from_pair(pair):
-    input_tensor = tensor_from_sentence('messages', pair[0])
-    target_tensor = tensor_from_sentence('responses', pair[1])
+def tensors_from_pair(pair, input_lang, output_lang):
+    input_tensor = tensor_from_sentence(input_lang, pair[0])
+    target_tensor = tensor_from_sentence(output_lang, pair[1])
     return (input_tensor, target_tensor)
 
