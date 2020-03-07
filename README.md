@@ -1,4 +1,4 @@
 # Mini Me
 A chatbot trained on all my facebook messenger chat history.
 
-Seq2Seq and LSTM built in pytorch 
+The goal is to build a conversational agent to speak like me. To train it, I downloaded all my Facebook messenger data (not included in the repo for obvious reasons) to use as training data. Sequence to sequence models, as proposed by <a href="https://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-networks.pdf">Ilya Sutskever et al. in 2014 </a>, are popular models for a variety of language tasks (including conversational agents, question answering, and machine translation). The goal is simple: given an encoding sequence X, decode the correct output sequence Y. In our case, our sequences will be modelled as a message / reply. The input will be a message to me, and the output will be my reply. This is a difficult problem, given how wildly conversations vary. Let's see how it goes!
